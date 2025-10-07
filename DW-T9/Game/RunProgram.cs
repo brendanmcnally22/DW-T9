@@ -1,26 +1,23 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DW_T9.Game
 {
-    public static class RunProgram
+    internal class RunProgram
     {
-        public static void Main(string[] args)
+        static void Main(string[] args)
         {
-            try
-            {
-                var game = new Game();
-                game.Run();
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Fatal error: " + ex.Message);
-                Console.ResetColor();
-            }
+            Console.Title = "DW_T9 Escape Game";
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.Clear();
+
+            UI ui = new UI();
+            Timer timer = new Timer(480); // 8 minutes
+            Player player = new Player();
+            GameContext ctx = new GameContext(ui, timer, player);
+
+            Game game = new Game(ctx);
+            game.Run();
         }
     }
 }
