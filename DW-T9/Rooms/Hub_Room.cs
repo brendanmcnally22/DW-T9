@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DW_T9
+namespace DW_T9.Rooms
 {
     public class TerminalGame
     {

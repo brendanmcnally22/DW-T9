@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DW_T9
+namespace DW_T9.Game
 {
-    public class Hallway
+    internal class Game
     {
     }
 }
