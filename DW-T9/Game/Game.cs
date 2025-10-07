@@ -44,7 +44,7 @@ namespace DW_T9.Game
                     _ui.Type("Two-player setup:");
                     _ui.Type("- Player 1: terminal (you)");
                     _ui.Type("- Player 2: physical diorama/map");
-                    _ui.Type("Talk to each other. Path is linear until the hallway, then choose Bedroom or Clock.");
+                    _ui.Type("Talk to each other with the Walkie talkies. Path is linear until the hallway, then your fate is in your hands");
                     continue;
                 }
 
