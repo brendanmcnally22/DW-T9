@@ -23,7 +23,7 @@ namespace DW_T9.Game
             RenderTimer(secondsLeft, TotalSeconds); // ← shows mm:ss + progress bar
             Console.WriteLine($" Cards: {cardsInserted}/{cardsTotal}");
             Console.WriteLine("========================================\n");
-            Console.WriteLine("Commands below");
+            Console.WriteLine("Commands you can type below");
             Console.WriteLine(" look | inspect <x> | pickup <x> | inventory | use <x> | enter <ans> | insert <card> | go <room> | back | help | quit\n");
         }
 
