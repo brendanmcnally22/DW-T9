@@ -160,7 +160,7 @@ namespace DW_T9.Game
             if (_router.Verb == "look")
             {
                 _ui.Type("FOYER: You’re a pizza guy who delivered to the wrong house. The air is stale.");
-                _ui.Type("Ahead, a central \"living\" room.");
+                _ui.Type("Ahead, a Skeleton and a door to what seems to be a \"living\" room.");
                 _ui.Type("Try: tutorial | go \"living\"");
                 return;
             }
@@ -225,7 +225,7 @@ namespace DW_T9.Game
 
             if (_router.Verb == "look")
             {
-                _ui.Type("HALLWAY: Portraits line the walls. You can choose left or right.");
+                _ui.Type("HALLWAY: Portraits line the walls. You can choose the bedroom or the kitchen.");
                 _ui.Type("Choices: go \"bedroom\" (bust → snake)  |  go \"clock\" (time → raven)");
                 return;
             }

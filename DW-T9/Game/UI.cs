@@ -8,6 +8,7 @@ namespace DW_T9.Game
     public sealed class UI
     {
         public int TypeDelayMs { get; set; } = 10;
+        public int TotalSeconds { get; set; } = 480; // used for the time progress bar
 
         public void Clear()
         {
@@ -17,14 +18,34 @@ namespace DW_T9.Game
 
         public void Frame(string roomName, int secondsLeft, int cardsInserted, int cardsTotal)
         {
-            var mm = secondsLeft / 60;
-            var ss = secondsLeft % 60;
             Console.WriteLine("========================================");
             Console.WriteLine($" THE MAD MANOR  | Room: {roomName}");
-            Console.WriteLine($" Time: {mm:00}:{ss:00} | Cards: {cardsInserted}/{cardsTotal}");
+            RenderTimer(secondsLeft, TotalSeconds); // ← shows mm:ss + progress bar
+            Console.WriteLine($" Cards: {cardsInserted}/{cardsTotal}");
             Console.WriteLine("========================================\n");
             Console.WriteLine("Commands below");
             Console.WriteLine(" look | inspect <x> | pickup <x> | inventory | use <x> | enter <ans> | insert <card> | go <room> | back | help | quit\n");
+        }
+
+        // --- Timer rendering helpers ---
+        public void RenderTimer(int secondsLeft, int totalSeconds)
+        {
+            int mm = secondsLeft / 60;
+            int ss = secondsLeft % 60;
+
+            int barWidth = 24;
+            double pct = Math.Clamp((double)secondsLeft / Math.Max(1, totalSeconds), 0, 1);
+            int fill = (int)(pct * barWidth);
+            string bar = "[" + new string('#', fill) + new string('-', Math.Max(0, barWidth - fill)) + "]";
+
+            Console.WriteLine($" Time: {mm:00}:{ss:00} {bar}");
+        }
+
+        public void RenderTimerSimple(int secondsLeft)
+        {
+            int mm = secondsLeft / 60;
+            int ss = secondsLeft % 60;
+            Console.WriteLine($" Time left: {mm:00}:{ss:00}");
         }
 
         public void Type(string text)

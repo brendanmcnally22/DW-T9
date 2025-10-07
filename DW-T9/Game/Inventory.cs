@@ -39,7 +39,7 @@ namespace DW_T9.Game
 
         public string ListAll()
         {
-            if (_items.Count == 0) return "Your inventory is empty.";
+            if (_items.Count == 0) return "You have no Keys yet!.";
             return "Inventory:\n" + string.Join("\n",
                 _items.Select(i => $"- \"{i.Name}\": {i.Description}"));
         }
