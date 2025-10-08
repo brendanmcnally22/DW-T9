@@ -12,4 +12,8 @@
     <Folder Include="Assets\Audio\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Windows.Extensions" Version="9.0.9" />
+  </ItemGroup>
+
 </Project>

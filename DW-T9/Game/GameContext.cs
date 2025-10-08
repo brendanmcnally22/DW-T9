@@ -7,12 +7,14 @@ namespace DW_T9.Game
         public UI UI { get; }
         public Timer Timer { get; }
         public Player Player { get; }
+        public AudioManager Audio { get; }   // ← NEW
 
-        public GameContext(UI ui, Timer timer, Player player)
+        public GameContext(UI ui, Timer timer, Player player, AudioManager audio)
         {
             UI = ui;
             Timer = timer;
             Player = player;
+            Audio = audio;
         }
 
         // Convenience helpers

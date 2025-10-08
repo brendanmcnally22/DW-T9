@@ -11,13 +11,20 @@ namespace DW_T9.Game
             Console.BackgroundColor = ConsoleColor.Black;
             Console.Clear();
 
-            UI ui = new UI();
-            Timer timer = new Timer(480); // 8 minutes
-            Player player = new Player();
-            GameContext ctx = new GameContext(ui, timer, player);
+            var ui = new UI { TotalSeconds = 480 };
+            var timer = new Timer(480);
+            var player = new Player();
+            var audio = new AudioManager("Assets/Audio");
 
-            Game game = new Game(ctx);
+            // Start menu music
+            audio.PlayMusic(SoundId.MenuTheme);
+
+            var ctx = new GameContext(ui, timer, player, audio);
+            var game = new Game(ctx);
+
             game.Run();
+
+            audio.Dispose();
         }
     }
 }
