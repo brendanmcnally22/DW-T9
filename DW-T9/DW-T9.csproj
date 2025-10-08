@@ -16,4 +16,10 @@
     <PackageReference Include="System.Windows.Extensions" Version="9.0.9" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Assets\Audio\jumpscare.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
