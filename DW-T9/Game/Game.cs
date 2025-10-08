@@ -9,6 +9,7 @@ namespace DW_T9.Game
         private readonly UI _ui;
         private readonly Timer _timer;
         private readonly Player _player;
+        private readonly GameContext _ctx; // <-- keep a reference so we can use Audio
 
         // Simple parser (Verb + Noun)
         private readonly CommandRouter _router = new CommandRouter();
@@ -25,6 +26,7 @@ namespace DW_T9.Game
 
         public Game(GameContext ctx)
         {
+            _ctx = ctx;
             _ui = ctx.UI;
             _timer = ctx.Timer;
             _player = ctx.Player;
@@ -35,6 +37,9 @@ namespace DW_T9.Game
             // Menu first (timer starts AFTER play)
             _ui.Clear();
             _ui.ShowIntro();
+
+            // Start MENU music here (safe if file missing)
+            _ctx.Audio.PlayMusic(SoundId.MenuTheme);
 
             while (true)
             {
@@ -60,6 +65,10 @@ namespace DW_T9.Game
 
                 _ui.Toast("Unknown option. Type 'play', 'help', or 'quit'.");
             }
+
+            // Switch to GAMEPLAY loop music AFTER Play
+            _ctx.Audio.StopMusic();
+            _ctx.Audio.PlayMusic(SoundId.GameLoop);
 
             // Start systems AFTER 'play'
             _timer.Start();
@@ -145,6 +154,7 @@ namespace DW_T9.Game
                 if (CollectedCardsCount() >= 4 && _room != "escape")
                 {
                     _room = "escape";
+                    _ctx.Audio.PlaySfx(SoundId.Win); // win jingle
                     _ui.Type("The main door groans open—your cards resonate in the stone. YOU ESCAPE!");
                     break;
                 }
@@ -174,6 +184,7 @@ namespace DW_T9.Game
                 if (!_player.HasCard(CardType.Beetle))
                 {
                     _player.AddCard(CardType.Beetle); // first/tutorial card
+                    _ctx.Audio.PlaySfx(SoundId.CardGained);
                     _ui.Type("Player 2 hands you a carved \"beetle\" card.");
                 }
                 else
@@ -204,7 +215,11 @@ namespace DW_T9.Game
                     if (!_livingSolved)
                     {
                         _livingSolved = true;
-                        if (!_player.HasCard(CardType.Rat)) _player.AddCard(CardType.Rat);
+                        if (!_player.HasCard(CardType.Rat))
+                        {
+                            _player.AddCard(CardType.Rat);
+                            _ctx.Audio.PlaySfx(SoundId.CardGained);
+                        }
                         _ui.Type("You lift the board at B3. A recess holds a \"rat\" card. Doors creak open toward the hallway.");
                     }
                     else _ui.Hint("Already solved. Try: go \"hallway\"");
@@ -248,7 +263,11 @@ namespace DW_T9.Game
                         if (!_clockSolved)
                         {
                             _clockSolved = true;
-                            if (!_player.HasCard(CardType.Raven)) _player.AddCard(CardType.Raven);
+                            if (!_player.HasCard(CardType.Raven))
+                            {
+                                _player.AddCard(CardType.Raven);
+                                _ctx.Audio.PlaySfx(SoundId.CardGained);
+                            }
                             _ui.Type("Gears catch; a narrow recess opens in the hallway panel. You take the \"raven\" card.");
                         }
                         else _ui.Hint("The hallway clock is already set. Maybe check the bedroom or kitchen.");
@@ -282,7 +301,11 @@ namespace DW_T9.Game
                     if (!_bedroomSolved)
                     {
                         _bedroomSolved = true;
-                        if (!_player.HasCard(CardType.Snake)) _player.AddCard(CardType.Snake);
+                        if (!_player.HasCard(CardType.Snake))
+                        {
+                            _player.AddCard(CardType.Snake);
+                            _ctx.Audio.PlaySfx(SoundId.CardGained);
+                        }
                         _ui.Type("Stone clicks; an alcove opens. You take the \"snake\" card. (back to hallway)");
                     }
                     else _ui.Hint("Already solved. Type 'back' to the hallway.");
@@ -308,7 +331,7 @@ namespace DW_T9.Game
             // False puzzle: lighting candles never gives a card. It delivers a hint (and one-time jumpscare).
             if (_router.Verb == "light")
             {
-                var n = _router.Noun.Trim(); // e.g., "candles", "candles 1,3,4", etc.
+                var n = _router.Noun.Trim(); // e.g., "candles"
                 if (n.StartsWith("candles"))
                 {
                     if (!_kitchenHintGiven)
@@ -316,7 +339,8 @@ namespace DW_T9.Game
                         if (!_kitchenJumpscareUsed)
                         {
                             _kitchenJumpscareUsed = true;
-                            _ui.ShowJumpscare(JumpscareId.Whisper, 500);
+                            _ctx.Audio.PlaySfx(SoundId.Jumpscare);       // play sfx
+                            _ui.ShowJumpscare(JumpscareId.Whisper, 500); // visual effect
                         }
 
                         _kitchenHintGiven = true;
@@ -356,7 +380,11 @@ namespace DW_T9.Game
                     break;
 
                 case "hallway":
-                    if (target == "bedroom") _room = "bedroom";
+                    if (target == "bedroom")
+                    {
+                        _room = "bedroom";
+                        _ctx.Audio.PlaySfx(SoundId.DoorBedroom); // door sfx when entering bedroom
+                    }
                     else if (target == "kitchen") _room = "kitchen";
                     else _ui.Toast("Choices here: set clock h:mm  |  go \"bedroom\"  |  go \"kitchen\"  |  back");
                     break;
@@ -406,7 +434,7 @@ namespace DW_T9.Game
                     break;
 
                 case "escape":
-                    _ui.Type("Night air floods in—freedom! ");
+                    _ui.Type("Night air floods in—freedom!");
                     break;
 
                 default:

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Media;
 
-
 namespace DW_T9.Game
 {
     public enum SoundId
@@ -18,10 +17,9 @@ namespace DW_T9.Game
     }
 
     /// <summary>
-    /// Simple WAV audio manager using relative paths. 
-    /// Put your audio files under ./Assets/Audio and set each to:
-    ///   Build Action: None
-    ///   Copy to Output Directory: Copy if newer
+    /// WAV audio manager using relative paths under ./Assets/Audio.
+    /// Set each .wav to: Build Action=None, Copy to Output Directory=Copy if newer.
+    /// Windows-only playback is guarded; on other OSes this safely no-ops.
     /// </summary>
     public sealed class AudioManager : IDisposable
     {
@@ -30,16 +28,19 @@ namespace DW_T9.Game
         private SoundPlayer? _musicPlayer;
         private SoundId? _currentMusic;
 
+        // Flip to false later if you don't want SFX to block while playing
+        public bool BlockSfxWhileDebugging { get; set; } = true;
+
         public AudioManager(string baseDir = "Assets/Audio")
         {
             _baseDir = baseDir;
 
-            // Map sound IDs to filenames (you can rename these to whatever you commit)
+            // TIP: keep names lowercase to avoid case-sensitive misses
             _map = new Dictionary<SoundId, string>
             {
                 { SoundId.MenuTheme,   "menu_theme.wav" },
                 { SoundId.GameLoop,    "game_loop.wav"  },
-                { SoundId.Key,         "Key.wav"        },
+                { SoundId.Key,         "key.wav"        },          // <- was "Key.wav"
                 { SoundId.DoorBedroom, "door_bedroom.wav" },
                 { SoundId.CardGained,  "card_gained.wav" },
                 { SoundId.Win,         "win.wav" },
@@ -49,25 +50,29 @@ namespace DW_T9.Game
 
         public void PlayMusic(SoundId id)
         {
+            if (!OperatingSystem.IsWindows()) return;
+            var path = Resolve(id);
+            if (path == null) return;
+
+            if (_currentMusic.HasValue && _currentMusic.Value == id) return;
+
+#pragma warning disable CA1416 // SoundPlayer is Windows-only
             try
             {
-                var path = Resolve(id);
-                if (path == null) return;
-
-                // If the requested music is already playing, ignore
-                if (_currentMusic.HasValue && _currentMusic.Value.Equals(id)) return;
-
                 StopMusic();
                 _musicPlayer = new SoundPlayer(path);
-                _musicPlayer.LoadAsync();
+                _musicPlayer.Load();       // sync load is safer here
                 _musicPlayer.PlayLooping();
                 _currentMusic = id;
             }
-            catch { /* no-op: silent fail if not supported */ }
+            catch { /* swallow */ }
+#pragma warning restore CA1416
         }
 
         public void StopMusic()
         {
+            if (!OperatingSystem.IsWindows()) return;
+#pragma warning disable CA1416
             try
             {
                 _musicPlayer?.Stop();
@@ -79,30 +84,40 @@ namespace DW_T9.Game
                 _musicPlayer = null;
                 _currentMusic = null;
             }
+#pragma warning restore CA1416
         }
 
         public void PlaySfx(SoundId id)
         {
+            if (!OperatingSystem.IsWindows()) return;
+            var path = Resolve(id);
+            if (path == null) return;
+
+#pragma warning disable CA1416
             try
             {
-                var path = Resolve(id);
-                if (path == null) return;
                 using var s = new SoundPlayer(path);
-                s.Play(); // fire-and-forget
+                s.Load();
+                if (BlockSfxWhileDebugging)
+                    s.PlaySync();  // block briefly so you KNOW it played
+                else
+                    s.Play();      // async fire-and-forget
             }
-            catch { /* no-op */ }
+            catch { /* swallow */ }
+#pragma warning restore CA1416
         }
 
         private string? Resolve(SoundId id)
         {
             if (!_map.TryGetValue(id, out var file)) return null;
             var full = Path.Combine(_baseDir, file);
+#if DEBUG
+            // Helpful trace while wiring things up
+            Console.WriteLine($"[Audio] {id} -> {full} (exists={File.Exists(full)})");
+#endif
             return File.Exists(full) ? full : null;
         }
 
-        public void Dispose()
-        {
-            StopMusic();
-        }
+        public void Dispose() => StopMusic();
     }
 }
