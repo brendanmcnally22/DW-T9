@@ -5,7 +5,7 @@ namespace DW_T9.Game
 {
     internal sealed class Game
     {
-        // Core services (provided via GameContext for easy testing/injection)
+        // Core services
         private readonly UI _ui;
         private readonly Timer _timer;
         private readonly Player _player;
@@ -14,10 +14,14 @@ namespace DW_T9.Game
         private readonly CommandRouter _router = new CommandRouter();
 
         // World state
-        private string _room = "foyer";     // foyer → living → hallway → (bedroom | clock) → escape
+        private string _room = "foyer";     // foyer → living → hallway → (bedroom | kitchen) → escape
         private bool _livingSolved = false; // gate to hallway
         private bool _bedroomSolved = false;
-        private bool _clockSolved = false;
+        private bool _clockSolved = false;  // solved IN hallway
+
+        // Kitchen (false puzzle) state
+        private bool _kitchenHintGiven = false;
+        private bool _kitchenJumpscareUsed = false;
 
         public Game(GameContext ctx)
         {
@@ -44,7 +48,7 @@ namespace DW_T9.Game
                     _ui.Type("Two-player setup:");
                     _ui.Type("- Player 1: terminal (you)");
                     _ui.Type("- Player 2: physical diorama/map");
-                    _ui.Type("Talk to each other with the Walkie talkies. Path is linear until the hallway, then your fate is in your hands");
+                    _ui.Type("Talk to each other with the Walkie talkies. Path is linear until the hallway, then choose Bedroom or Kitchen. The hallway clock is solved in-place.");
                     continue;
                 }
 
@@ -89,7 +93,7 @@ namespace DW_T9.Game
                 }
                 else if (_router.Verb == "help")
                 {
-                    _ui.Type("Commands: look | inspect <x> | pickup <x> | inventory | cards | use <x> | enter <ans> | go <room> | back | help | quit");
+                    _ui.Type("Commands: look | inspect <x> | pickup <x> | inventory | cards | use <x> | enter <ans> | set clock h:mm | light candles | go <room> | back | help | quit");
                     continue;
                 }
                 else if (_router.Verb == "inventory" || _router.Verb == "inv" || _router.Verb == "bag")
@@ -108,7 +112,7 @@ namespace DW_T9.Game
                     // Walk back along the linear route
                     if (_room == "living") _room = "foyer";
                     else if (_room == "hallway") _room = "living";
-                    else if (_room == "bedroom" || _room == "clock") _room = "hallway";
+                    else if (_room == "bedroom" || _room == "kitchen") _room = "hallway";
                     else _room = "foyer";
 
                     DescribeRoom();
@@ -125,9 +129,9 @@ namespace DW_T9.Game
                 {
                     case "foyer": HandleFoyer(); break;
                     case "living": HandleLiving(); break;
-                    case "hallway": HandleHallway(); break;
+                    case "hallway": HandleHallway(); break; // clock puzzle lives here
                     case "bedroom": HandleBedroom(); break;
-                    case "clock": HandleClock(); break;
+                    case "kitchen": HandleKitchen(); break; // false puzzle + hint
                     case "escape":
                         _ui.Type("Night air floods in—freedom!");
                         return;
@@ -225,12 +229,39 @@ namespace DW_T9.Game
 
             if (_router.Verb == "look")
             {
-                _ui.Type("HALLWAY: Portraits line the walls. You can choose the bedroom or the kitchen.");
-                _ui.Type("Choices: go \"bedroom\" (bust → snake)  |  go \"clock\" (time → raven)");
+                _ui.Type("HALLWAY: Portraits line the walls. A wall \"clock\" with loose hands ticks softly.");
+                _ui.Type("Doors lead to the \"bedroom\" and the \"kitchen\".");
+                _ui.Type("You can solve the clock here (ask Player 2 for the time on the map), or explore the rooms.");
+                _ui.Type("Try: set clock 9:15  |  go \"bedroom\"  |  go \"kitchen\"");
                 return;
             }
 
-            _ui.Hint("Try: look | go \"bedroom\" | go \"clock\"");
+            // Clock puzzle is solved IN the hallway
+            if (_router.Verb == "set")
+            {
+                var n = _router.Noun.Trim();
+                if (n.StartsWith("clock "))
+                {
+                    var time = n.Substring("clock ".Length).Trim();
+                    if (time == "9:15")
+                    {
+                        if (!_clockSolved)
+                        {
+                            _clockSolved = true;
+                            if (!_player.HasCard(CardType.Raven)) _player.AddCard(CardType.Raven);
+                            _ui.Type("Gears catch; a narrow recess opens in the hallway panel. You take the \"raven\" card.");
+                        }
+                        else _ui.Hint("The hallway clock is already set. Maybe check the bedroom or kitchen.");
+                        return;
+                    }
+                    _ui.Hint("Ask Player 2 for the diorama time. (Skeleton expects 9:15)");
+                    return;
+                }
+                _ui.Hint("Usage: set clock h:mm (e.g., set clock 9:15)");
+                return;
+            }
+
+            _ui.Hint("Try: look | set clock 9:15 | go \"bedroom\" | go \"kitchen\" | back");
         }
 
         private void HandleBedroom()
@@ -264,41 +295,46 @@ namespace DW_T9.Game
             _ui.Hint("Try: look | rotate head east | back");
         }
 
-        private void HandleClock()
+        private void HandleKitchen()
         {
             if (_router.Verb == "look")
             {
-                _ui.Type("CLOCK ROOM: A wall \"clock\" with loose hands. Note: \"Match the map.\"");
-                _ui.Type("Skeleton: type 'set clock 9:15' → awards \"raven\" card.");
+                _ui.Type("KITCHEN: Soot-blackened \"candles\" line the counter. A faint **morse** chart is scratched into the wall.");
+                _ui.Type("This puzzle is a red herring; it won’t award a card. It points you toward the bedroom search.");
+                _ui.Type("Try: light candles");
                 return;
             }
 
-            if (_router.Verb == "set")
+            // False puzzle: lighting candles never gives a card. It delivers a hint (and one-time jumpscare).
+            if (_router.Verb == "light")
             {
-                // Expecting noun like: "clock 9:15"
-                var n = _router.Noun.Trim();
-                if (n.StartsWith("clock "))
+                var n = _router.Noun.Trim(); // e.g., "candles", "candles 1,3,4", etc.
+                if (n.StartsWith("candles"))
                 {
-                    var time = n.Substring("clock ".Length).Trim();
-                    if (time == "9:15")
+                    if (!_kitchenHintGiven)
                     {
-                        if (!_clockSolved)
+                        if (!_kitchenJumpscareUsed)
                         {
-                            _clockSolved = true;
-                            if (!_player.HasCard(CardType.Raven)) _player.AddCard(CardType.Raven);
-                            _ui.Type("Gears catch; a recess opens. You take the \"raven\" card. (back to hallway)");
+                            _kitchenJumpscareUsed = true;
+                            _ui.ShowJumpscare(JumpscareId.Whisper, 500);
                         }
-                        else _ui.Hint("Already solved. Type 'back' to the hallway.");
-                        return;
+
+                        _kitchenHintGiven = true;
+                        _ui.Type("The flames gutter and reveal a greasy message along the backsplash:");
+                        _ui.Hint("“SEARCH BENEATH THE BUST—LEFT FRONT.”");
+                        _ui.Type("(Head back to the bedroom.)");
                     }
-                    _ui.Hint("Ask Player 2 for the diorama time. (Skeleton expects 9:15)");
+                    else
+                    {
+                        _ui.Hint("The message is already visible: “SEARCH BENEATH THE BUST—LEFT FRONT.”");
+                    }
                     return;
                 }
-                _ui.Hint("Usage: set clock h:mm (e.g., set clock 9:15)");
+                _ui.Hint("Usage: light candles");
                 return;
             }
 
-            _ui.Hint("Try: look | set clock 9:15 | back");
+            _ui.Hint("Try: look | light candles | back");
         }
 
         private void HandleGo()
@@ -321,12 +357,12 @@ namespace DW_T9.Game
 
                 case "hallway":
                     if (target == "bedroom") _room = "bedroom";
-                    else if (target == "clock") _room = "clock";
-                    else _ui.Toast("Choices here: go \"bedroom\" or go \"clock\".");
+                    else if (target == "kitchen") _room = "kitchen";
+                    else _ui.Toast("Choices here: set clock h:mm  |  go \"bedroom\"  |  go \"kitchen\"  |  back");
                     break;
 
                 case "bedroom":
-                case "clock":
+                case "kitchen":
                     if (target == "hallway") _room = "hallway";
                     else _ui.Toast("Try: back (to hallway).");
                     break;
@@ -355,8 +391,8 @@ namespace DW_T9.Game
                     break;
 
                 case "hallway":
-                    _ui.Type("Portraits line the walls.");
-                    _ui.Type("Choices: go \"bedroom\" | go \"clock\" | back");
+                    _ui.Type("Portraits and a ticking clock. Doors lead to the bedroom and the kitchen.");
+                    _ui.Type("Try: look | set clock 9:15 | go \"bedroom\" | go \"kitchen\" | back");
                     break;
 
                 case "bedroom":
@@ -364,13 +400,13 @@ namespace DW_T9.Game
                     _ui.Type("Try: look | rotate head east | back");
                     break;
 
-                case "clock":
-                    _ui.Type("A wall clock with loose hands.");
-                    _ui.Type("Try: look | set clock 9:15 | back");
+                case "kitchen":
+                    _ui.Type("Soot-blackened candles. A faint morse chart scratched into the wall.");
+                    _ui.Type("Try: look | light candles | back");
                     break;
 
                 case "escape":
-                    _ui.Type("Night air floods in—freedom!");
+                    _ui.Type("Night air floods in—freedom! ");
                     break;
 
                 default:
@@ -385,7 +421,7 @@ namespace DW_T9.Game
             "living" => "Living Room",
             "hallway" => "Hallway",
             "bedroom" => "Bedroom",
-            "clock" => "Clock Room",
+            "kitchen" => "Kitchen",
             "escape" => "Main Door",
             _ => "Unknown"
         };
